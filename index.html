@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador Etiquetas QR Activos KURODA</title>
+    <title>Generador Etiquetas QR Activos KURODA 09.10.2025</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -166,7 +166,8 @@
             position: relative;
             overflow: auto;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
         }
 
         /* MÁRGENES CONSISTENTES PARA TODAS LAS PÁGINAS */
@@ -174,12 +175,13 @@
             background: white;
             width: 210mm;
             height: 297mm;
-            margin: 0 auto;
+            margin: 0 auto 20px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             /* MÁRGENES FIJOS Y CONSISTENTES */
             padding: 8mm 5mm;
             display: grid;
             gap: 2mm;
+            page-break-after: always;
         }
 
         .label {
@@ -187,34 +189,61 @@
             border-radius: 3px;
             padding: 2mm;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
+            text-align: left;
             background: white;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
             break-inside: avoid;
             page-break-inside: avoid;
             overflow: hidden;
-            /* Asegurar que las etiquetas tengan el mismo tamaño */
             min-height: 0;
+            position: relative;
+        }
+
+        .qr-container {
+            flex-shrink: 0;
+            margin-right: 3mm;
+            display: flex;
+            align-items: flex-start;
         }
 
         .qr-code {
-            margin-bottom: 1mm;
+            width: 20mm;
+            height: 20mm;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .label-data {
+            flex: 1;
             font-size: 9px;
-            width: 100%;
             line-height: 1.2;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
         }
 
-        .label-data div {
-            margin-bottom: 1px;
+        .asset-number {
+            font-weight: bold;
+            font-size: 10px;
+            margin-bottom: 1mm;
+            text-align: right;
+        }
+
+        .description {
+            margin-bottom: 1mm;
             overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            min-height: 3.6em;
+        }
+
+        .details {
+            margin-top: auto;
+            font-size: 8px;
+            color: #555;
         }
 
         .actions {
@@ -277,6 +306,17 @@
             text-align: center;
         }
 
+        .print-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .print-controls label {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
         /* ESTILOS DE IMPRESIÓN MEJORADOS */
         @media print {
             body {
@@ -289,24 +329,19 @@
                 visibility: hidden;
             }
             
-            .preview-section, .preview-section * {
+            .preview-container, .preview-container * {
                 visibility: visible;
             }
             
-            .preview-section {
+            .preview-container {
                 position: absolute;
                 left: 0;
                 top: 0;
                 width: 100%;
                 padding: 0;
                 margin: 0;
-            }
-            
-            .preview-container {
-                padding: 0;
                 box-shadow: none;
-                margin: 0;
-                width: 100%;
+                background: white;
             }
             
             .page-preview {
@@ -315,11 +350,10 @@
                 height: 100%;
                 padding: 8mm 5mm;
                 margin: 0;
-                /* Forzar márgenes en impresión */
                 page-break-after: always;
             }
             
-            .actions, header, .upload-section, .card h2 {
+            .actions, header, .upload-section, .card h2, .print-controls {
                 display: none;
             }
             
@@ -346,8 +380,7 @@
     <div class="container">
         <header>
             <h1>Generador de Etiquetas QR Activos KURODA</h1>
- <title>©Cerezo</title>
-            <p class="subtitle"> ©Francisco Javier Cerezo Ramos 05.10.2025</p>
+            <p class="subtitle">©Francisco Javier Cerezo Ramos 05.10.2025</p>
         </header>
         
         <div class="content">
@@ -391,6 +424,19 @@
                         Máximo: <strong>40 etiquetas</strong> por hoja (4x10)
                     </div>
                     
+                    <div class="print-controls">
+                        <div class="form-group">
+                            <label for="scale">Escala de impresión (%):</label>
+                            <select id="scale">
+                                <option value="90">90%</option>
+                                <option value="95">95%</option>
+                                <option value="100" selected>100%</option>
+                                <option value="105">105%</option>
+                                <option value="110">110%</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <button id="generateBtn">Generar Etiquetas</button>
                 </div>
                 
@@ -411,7 +457,7 @@
             <div class="preview-section">
                 <div class="card">
                     <h2>Vista Previa de Etiquetas</h2>
-                    <div class="preview-container">
+                    <div class="preview-container" id="previewContainer">
                         <div class="page-preview" id="pagePreview">
                             <div class="empty-state">
                                 <i>📄</i>
@@ -437,9 +483,10 @@
             const generateBtn = document.getElementById('generateBtn');
             const printBtn = document.getElementById('printBtn');
             const downloadBtn = document.getElementById('downloadBtn');
-            const pagePreview = document.getElementById('pagePreview');
+            const previewContainer = document.getElementById('previewContainer');
             const columnsSelect = document.getElementById('columns');
             const rowsSelect = document.getElementById('rows');
+            const scaleSelect = document.getElementById('scale');
             const statusMessage = document.getElementById('statusMessage');
             const densityInfo = document.getElementById('densityInfo');
             
@@ -489,7 +536,24 @@
             });
             
             generateBtn.addEventListener('click', generateLabels);
-            printBtn.addEventListener('click', () => window.print());
+            printBtn.addEventListener('click', () => {
+                // Aplicar escala antes de imprimir
+                const scale = parseInt(scaleSelect.value) / 100;
+                const pagePreviews = document.querySelectorAll('.page-preview');
+                pagePreviews.forEach(page => {
+                    page.style.transform = `scale(${scale})`;
+                    page.style.transformOrigin = 'top left';
+                });
+                
+                window.print();
+                
+                // Restaurar escala después de imprimir
+                setTimeout(() => {
+                    pagePreviews.forEach(page => {
+                        page.style.transform = '';
+                    });
+                }, 100);
+            });
             downloadBtn.addEventListener('click', downloadPDF);
             
             // Función para mostrar mensajes de estado
@@ -574,25 +638,40 @@
                 const labelsPerPage = columns * rows;
                 
                 // Limpiar vista previa
-                pagePreview.innerHTML = '';
-                pagePreview.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
-                pagePreview.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+                previewContainer.innerHTML = '';
                 
                 // Habilitar botones de acción
                 printBtn.disabled = false;
                 downloadBtn.disabled = false;
                 
-                // Generar etiquetas para la primera página
+                // Calcular número de páginas necesarias
+                const totalPages = Math.ceil(assetData.length / labelsPerPage);
+                
+                // Generar todas las páginas necesarias
                 let labelsGenerated = 0;
                 
-                for (let i = 0; i < Math.min(labelsPerPage, assetData.length); i++) {
-                    const asset = assetData[i];
-                    if (createLabel(asset, pagePreview)) {
-                        labelsGenerated++;
+                for (let page = 0; page < totalPages; page++) {
+                    const pageDiv = document.createElement('div');
+                    pageDiv.className = 'page-preview';
+                    pageDiv.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+                    pageDiv.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+                    
+                    // Calcular índices para esta página
+                    const startIndex = page * labelsPerPage;
+                    const endIndex = Math.min(startIndex + labelsPerPage, assetData.length);
+                    
+                    // Generar etiquetas para esta página
+                    for (let i = startIndex; i < endIndex; i++) {
+                        const asset = assetData[i];
+                        if (createLabel(asset, pageDiv)) {
+                            labelsGenerated++;
+                        }
                     }
+                    
+                    previewContainer.appendChild(pageDiv);
                 }
                 
-                showStatus(`Se generaron ${labelsGenerated} etiquetas correctamente.`);
+                showStatus(`Se generaron ${labelsGenerated} etiquetas en ${totalPages} páginas.`);
             }
             
             // Función para crear una etiqueta individual
@@ -600,11 +679,6 @@
                 try {
                     const labelDiv = document.createElement('div');
                     labelDiv.className = 'label';
-                    
-                    // Crear contenedor para el QR
-                    const qrContainer = document.createElement('div');
-                    qrContainer.className = 'qr-code';
-                    labelDiv.appendChild(qrContainer);
                     
                     // Buscar las claves correctas (pueden variar en mayúsculas/minúsculas)
                     const assetNumberKey = Object.keys(asset).find(key => 
@@ -616,65 +690,68 @@
                     const seriesKey = Object.keys(asset).find(key => 
                         key.toLowerCase().includes('serie'));
                     
-                    // Crear un identificador único para el QR (más corto que todo el objeto)
+                    // Crear un identificador único para el QR (solo número de activo)
                     let qrText = '';
-                    if (assetNumberKey) qrText += `A:${asset[assetNumberKey]}`;
-                    if (branchKey) qrText += `|S:${asset[branchKey]}`;
-                    if (seriesKey) qrText += `|Ser:${asset[seriesKey]}`;
+                    if (assetNumberKey) qrText = asset[assetNumberKey].toString();
                     
-                    // Si el texto es demasiado largo, usar solo el número de activo
-                    if (qrText.length > 50) {
-                        qrText = assetNumberKey ? `A:${asset[assetNumberKey]}` : 'Activo';
-                    }
+                    // Crear contenedor para el QR
+                    const qrContainer = document.createElement('div');
+                    qrContainer.className = 'qr-container';
+                    
+                    const qrDiv = document.createElement('div');
+                    qrDiv.className = 'qr-code';
+                    qrContainer.appendChild(qrDiv);
+                    
+                    labelDiv.appendChild(qrContainer);
                     
                     // Generar QR con manejo de errores
                     try {
                         // Tamaño de QR más pequeño para maximizar espacio
-                        const qr = new QRCode(qrContainer, {
+                        const qr = new QRCode(qrDiv, {
                             text: qrText,
-                            width: 50,
-                            height: 50,
+                            width: 80,
+                            height: 80,
                             colorDark: "#000000",
                             colorLight: "#ffffff",
                             correctLevel: QRCode.CorrectLevel.M
                         });
                     } catch (qrError) {
                         console.error('Error generando QR:', qrError);
-                        qrContainer.innerHTML = '<div style="width:50px;height:50px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:8px;">Error QR</div>';
+                        qrDiv.innerHTML = '<div style="width:80px;height:80px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:8px;">Error QR</div>';
                     }
                     
                     // Crear contenedor para los datos
                     const dataDiv = document.createElement('div');
                     dataDiv.className = 'label-data';
                     
-                    // Agregar datos a la etiqueta
+                    // Agregar número de activo en la esquina superior derecha
                     if (assetNumberKey) {
                         const assetNumberDiv = document.createElement('div');
-                        assetNumberDiv.innerHTML = `<strong>Activo:</strong> ${asset[assetNumberKey]}`;
+                        assetNumberDiv.className = 'asset-number';
+                        assetNumberDiv.textContent = asset[assetNumberKey];
                         dataDiv.appendChild(assetNumberDiv);
                     }
                     
-                    if (branchKey) {
-                        const branchDiv = document.createElement('div');
-                        branchDiv.innerHTML = `<strong>Sucursal:</strong> ${asset[branchKey]}`;
-                        dataDiv.appendChild(branchDiv);
-                    }
-                    
+                    // Agregar descripción con autoajuste
                     if (descriptionKey) {
                         const descriptionDiv = document.createElement('div');
-                        // Limitar la descripción a 20 caracteres
-                        let desc = asset[descriptionKey];
-                        if (desc.length > 20) {
-                            desc = desc.substring(0, 20) + '...';
-                        }
-                        descriptionDiv.innerHTML = `<strong>Desc:</strong> ${desc}`;
+                        descriptionDiv.className = 'description';
+                        descriptionDiv.textContent = asset[descriptionKey];
                         dataDiv.appendChild(descriptionDiv);
                     }
                     
-                    if (seriesKey) {
-                        const seriesDiv = document.createElement('div');
-                        seriesDiv.innerHTML = `<strong>Serie:</strong> ${asset[seriesKey]}`;
-                        dataDiv.appendChild(seriesDiv);
+                    // Agregar sucursal y serie en la parte inferior
+                    if (branchKey || seriesKey) {
+                        const detailsDiv = document.createElement('div');
+                        detailsDiv.className = 'details';
+                        
+                        let detailsText = '';
+                        if (branchKey) detailsText += asset[branchKey];
+                        if (branchKey && seriesKey) detailsText += ' / ';
+                        if (seriesKey) detailsText += asset[seriesKey];
+                        
+                        detailsDiv.textContent = detailsText;
+                        dataDiv.appendChild(detailsDiv);
                     }
                     
                     labelDiv.appendChild(dataDiv);
